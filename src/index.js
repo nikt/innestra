@@ -152,72 +152,74 @@ function buildRivers() {
     for (var i = 0; i < rivers.features.length; i++) {
         let f = rivers.features[i];
         const coords = f.geometry.coordinates;
+        const cellList = f.properties.cells;
 
         const geometry = new THREE.BufferGeometry();
 
         let vertices = [];
         let normals = [];
 
-        let p1 = new THREE.Vector2();
-        let p2 = new THREE.Vector2();
         let dir = new THREE.Vector2();
         let per = new THREE.Vector2();
 
         // const startWidth = f.properties.sourceWidth;
         const startWidth = .1;
         const endWidth = startWidth * f.properties.widthFactor;
-        console.log('start: ' + startWidth);
+        // console.log('start: ' + startWidth);
         // const endWidth = startWidth * 5;
 
         let lastP1, lastP2;
-        for (var j = 0; j < coords.length - 1 && j < 4000; j++) {
-            const c1 = coords[j];
-            const c2 = coords[j + 1];
+        for (var j = 0; j < cellList.length - 1; j++) {
+            const cell1 = getCellByID(cellList[j]);
+            const cell2 = getCellByID(cellList[j + 1]);
 
-            p1.set(c1[0], c1[1]);
-            p2.set(c2[0], c2[1]);
+            const c1 = getCellLocation(cell1);
+            const c2 = getCellLocation(cell2);
 
-            if (p1.equals(p2)) {
+            // console.log("c1");
+            // console.log(c1);
+            // console.log("c2");
+            // console.log(c2);
+
+            if (c1.equals(c2)) {
                 // points are the same, no triangles to be drawn
                 continue;
             }
 
-            dir = p2.sub(p1);
+            dir.set(c2.x - c1.x, c2.y - c1.y);
+            // dir = c2.sub(c1);
             per.set(dir.x, -dir.y);
 
+
+
             // river width scales up to maximum
-            const progress = j / coords.length;
+            const progress = j / cellList.length;
             const currentWidth = startWidth + (endWidth - startWidth) * progress;
             per.normalize().multiplyScalar(currentWidth);
 
             if (!lastP1 || !lastP2) {
-                vertices.push(c1[0] - per.x / 2, c1[1] - per.y / 2, 1.1);
-                vertices.push(c1[0] + per.x / 2, c1[1] + per.y / 2, 1.1);
-                vertices.push(c2[0] - per.x / 2, c2[1] - per.y / 2, 1.1);
+                vertices.push(c1.x - per.x / 2, c1.y - per.y / 2, 1.1);
+                vertices.push(c1.x + per.x / 2, c1.y + per.y / 2, 1.1);
+                vertices.push(c2.x - per.x / 2, c2.y - per.y / 2, 1.1);
 
-                vertices.push(c2[0] - per.x / 2, c2[1] - per.y / 2, 1.1);
-                vertices.push(c1[0] + per.x / 2, c1[1] + per.y / 2, 1.1);
-                vertices.push(c2[0] + per.x / 2, c2[1] + per.y / 2, 1.1);
+                vertices.push(c2.x - per.x / 2, c2.y - per.y / 2, 1.1);
+                vertices.push(c1.x + per.x / 2, c1.y + per.y / 2, 1.1);
+                vertices.push(c2.x + per.x / 2, c2.y + per.y / 2, 1.1);
 
-                lastP1 = new THREE.Vector2(c2[0] - per.x / 2, c2[1] - per.y / 2);
-                lastP2 = new THREE.Vector2(c2[0] + per.x / 2, c2[1] + per.y / 2);
+                lastP1 = new THREE.Vector2(c2.x - per.x / 2, c2.y - per.y / 2);
+                lastP2 = new THREE.Vector2(c2.x + per.x / 2, c2.y + per.y / 2);
             } else {
-                console.log(lastP1);
-                console.log(lastP2);
-
                 vertices.push(lastP1.x, lastP1.y, 1.1);
                 vertices.push(lastP2.x, lastP2.y, 1.1);
-                vertices.push(c2[0] - per.x / 2, c2[1] - per.y / 2, 1.1);
+                vertices.push(c2.x - per.x / 2, c2.y - per.y / 2, 1.1);
 
-                vertices.push(c2[0] - per.x / 2, c2[1] - per.y / 2, 1.1);
+                vertices.push(c2.x - per.x / 2, c2.y - per.y / 2, 1.1);
                 vertices.push(lastP2.x, lastP2.y, 1.1);
-                vertices.push(c2[0] + per.x / 2, c2[1] + per.y / 2, 1.1);
+                vertices.push(c2.x + per.x / 2, c2.y + per.y / 2, 1.1);
 
-                lastP1 = new THREE.Vector2(c2[0] - per.x / 2, c2[1] - per.y / 2);
-                lastP2 = new THREE.Vector2(c2[0] + per.x / 2, c2[1] + per.y / 2);
+                lastP1 = new THREE.Vector2(c2.x - per.x / 2, c2.y - per.y / 2);
+                lastP2 = new THREE.Vector2(c2.x + per.x / 2, c2.y + per.y / 2);
             }
-
-            
 
             normals.push(0, 0, 1);
             normals.push(0, 0, 1);
@@ -231,11 +233,11 @@ function buildRivers() {
         geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
         geometry.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
 
-        const riverMaterial = new THREE.LineBasicMaterial( { color: 0x6B8BBB } );
-        const river = new THREE.Line(geometry, riverMaterial);
+        // const riverMaterial = new THREE.LineBasicMaterial( { color: 0x6B8BBB } );
+        // const river = new THREE.Line(geometry, riverMaterial);
 
-        // const riverMaterial = new THREE.MeshBasicMaterial({color: 0x6B8BBB});
-        // const river = new THREE.Mesh(geometry, riverMaterial);
+        const riverMaterial = new THREE.MeshBasicMaterial({color: 0x6B8BBB, side: THREE.DoubleSide});
+        const river = new THREE.Mesh(geometry, riverMaterial);
 
         // const edges = new THREE.EdgesGeometry( geometry );
         // const river = new THREE.LineSegments( edges, new THREE.LineBasicMaterial( { color: 0x000000 } ) );
@@ -244,7 +246,7 @@ function buildRivers() {
         group.add(river);
 
         // TODO: remove
-        // break;
+        break;
     }
 }
 
@@ -283,7 +285,7 @@ function getCellLocation(cell) {
 
     if (cell) {
         const coords = cell.geometry.coordinates[0];
-        const count = coords.length;
+        const count = coords.length - 1;
 
         for (var i = 0; i < count; i++) {
             loc.x += coords[i][0];
