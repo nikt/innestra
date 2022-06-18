@@ -166,7 +166,6 @@ function buildRivers() {
         // const startWidth = f.properties.sourceWidth;
         const startWidth = .1;
         const endWidth = startWidth * f.properties.widthFactor;
-        console.log('start: ' + startWidth);
         // const endWidth = startWidth * 5;
 
         let lastP1, lastP2;
@@ -182,7 +181,7 @@ function buildRivers() {
                 continue;
             }
 
-            dir = p2.sub(p1);
+            dir.set(p2.x - p1.x, p2.y - p1.y);
             per.set(dir.x, -dir.y);
 
             // river width scales up to maximum
@@ -202,9 +201,6 @@ function buildRivers() {
                 lastP1 = new THREE.Vector2(c2[0] - per.x / 2, c2[1] - per.y / 2);
                 lastP2 = new THREE.Vector2(c2[0] + per.x / 2, c2[1] + per.y / 2);
             } else {
-                console.log(lastP1);
-                console.log(lastP2);
-
                 vertices.push(lastP1.x, lastP1.y, 1.1);
                 vertices.push(lastP2.x, lastP2.y, 1.1);
                 vertices.push(c2[0] - per.x / 2, c2[1] - per.y / 2, 1.1);
@@ -217,8 +213,7 @@ function buildRivers() {
                 lastP2 = new THREE.Vector2(c2[0] + per.x / 2, c2[1] + per.y / 2);
             }
 
-            
-
+            // push basic normals
             normals.push(0, 0, 1);
             normals.push(0, 0, 1);
             normals.push(0, 0, 1);
@@ -227,18 +222,17 @@ function buildRivers() {
             normals.push(0, 0, 1);
         }
 
-        // console.log('vertices length: ' + vertices.length);
         geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
         geometry.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
 
-        const riverMaterial = new THREE.LineBasicMaterial( { color: 0x6B8BBB } );
-        const river = new THREE.Line(geometry, riverMaterial);
+        // const riverMaterial = new THREE.LineBasicMaterial( { color: 0x6B8BBB } );
+        // const river = new THREE.Line(geometry, riverMaterial);
 
-        // const riverMaterial = new THREE.MeshBasicMaterial({color: 0x6B8BBB});
-        // const river = new THREE.Mesh(geometry, riverMaterial);
+        const riverMaterial = new THREE.MeshBasicMaterial({color: 0x6B8BBB, side: THREE.DoubleSide});
+        const river = new THREE.Mesh(geometry, riverMaterial);
 
         // const edges = new THREE.EdgesGeometry( geometry );
-        // const river = new THREE.LineSegments( edges, new THREE.LineBasicMaterial( { color: 0x000000 } ) );
+        // const coast = new THREE.LineSegments( edges, new THREE.LineBasicMaterial( { color: 0x000000 } ) );
 
         riverMeshes.push(river);
         group.add(river);
