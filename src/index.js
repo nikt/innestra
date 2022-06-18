@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { MapControls } from 'three/examples/jsm/controls/OrbitControls'
+import { clamp } from 'three/src/math/mathutils';
 import cells from './cells.geojson';
 
 const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 1000);
@@ -48,6 +49,10 @@ const hill = new THREE.Color(0xFBF8B0);
 const vall = new THREE.Color(0x69BDA9);
 const water = new THREE.Color(0x6B8BBB);
 
+// random color variations
+const landVariation = 0.03;
+const waterVariation = 0.04;
+
 // const wireframeMaterial = new THREE.MeshBasicMaterial( { color: 0x000000, wireframe: true, transparent: true } );
 const lineMaterial = new THREE.LineBasicMaterial( { color: 0xFFFFFF, opacity: 0.2, transparent: true } );
 
@@ -92,15 +97,26 @@ for (var i = 0; i < cells.features.length; i++) {
         bot = hill;
     }
 
-    const r = new THREE.Color(
-        bot.r + (top.r - bot.r) * percent,
-        bot.g + (top.g - bot.g) * percent,
-        bot.b + (top.b - bot.b) * percent
-    );
+    let r;
+    if (f.properties.height > 0) {
+        // land colors
+        r = new THREE.Color(
+            componentVariation(bot.r + (top.r - bot.r) * percent, landVariation),
+            componentVariation(bot.g + (top.g - bot.g) * percent, landVariation),
+            componentVariation(bot.b + (top.b - bot.b) * percent, landVariation)
+        );
+    } else {
+        // water colors with random variation
+        r = new THREE.Color(
+            componentVariation(water.r, waterVariation),
+            componentVariation(water.g, waterVariation),
+            componentVariation(water.b, waterVariation)
+        )
+    }
     // const r = rgbToHex(i % 256, 255 - (i % 256), 0);
 
     // cell geometry
-    const mat = new THREE.MeshBasicMaterial({color: (f.properties.height > 0) ? r : water});
+    const mat = new THREE.MeshBasicMaterial({color: r});
     const geometry = new THREE.ExtrudeGeometry(shape, settings);
 
     const cell = new THREE.Mesh(geometry, mat);
@@ -142,4 +158,8 @@ function componentToHex(c) {
   
 function rgbToHex(r, g, b) {
     return "#" + componentToHex(r) + componentToHex(g) + componentToHex(b);
+}
+
+function componentVariation(c, v) {
+    return clamp(c + (Math.random() * v - v / 2), 0, 1);
 }
