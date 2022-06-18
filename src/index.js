@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { MapControls } from 'three/examples/jsm/controls/OrbitControls'
 import { clamp } from 'three/src/math/mathutils';
 import cells from './cells.geojson';
-import rivers from './rivers.geojson';
+import rivers from './rivers3.geojson';
 
 const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 1000);
 camera.position.y = 15;
@@ -30,6 +30,10 @@ controls.maxPolarAngle = Math.PI / 2;
 controls.target.set(0, 0, 0);
 controls.update();
 
+const seaLevel = 1;
+const maxHeight = 6724;
+const heightScale = maxHeight / 2;
+
 let group = new THREE.Group();
 let cellMeshes = [];
 let riverMeshes = [];
@@ -42,13 +46,11 @@ scene.add(group);
 function buildCells() {
     const extrudeSettings = {
         steps: 1,
-        depth: 1,
+        depth: seaLevel,
         bevelEnabled: false,
     }
     
     let bounds = {minX: 1000, maxX: 0, minY: 1000, maxY: 0};
-    const maxHeight = 6724;
-    const heightScale = maxHeight / 2;
 
     // peak color: #A71147
     // hill color: #FBF8B0
@@ -93,7 +95,7 @@ function buildCells() {
 
         let settings = {
             ...extrudeSettings,
-            depth: extrudeSettings.depth + (Math.max(0, f.properties.height) / heightScale),
+            depth: getCellHeightInScene(f.properties.height),
         }
         // maxHeight = Math.max(maxHeight, f.properties.height);
 
@@ -151,7 +153,7 @@ function buildCells() {
 function buildRivers() {
     for (var i = 0; i < rivers.features.length; i++) {
         let f = rivers.features[i];
-        const coords = f.geometry.coordinates;
+        // const coords = f.geometry.coordinates;
         const cellList = f.properties.cells;
 
         const geometry = new THREE.BufferGeometry();
@@ -176,21 +178,19 @@ function buildRivers() {
             const c1 = getCellLocation(cell1);
             const c2 = getCellLocation(cell2);
 
-            // console.log("c1");
-            // console.log(c1);
-            // console.log("c2");
-            // console.log(c2);
+            // calculate z height from cell, will need to change this later because
+            // it causes rivers to go uphill...
+            const z1 = getCellHeightInScene(cell1.properties.height) + 0.1;
+            const z2 = getCellHeightInScene(cell2.properties.height) + 0.1;
 
             if (c1.equals(c2)) {
                 // points are the same, no triangles to be drawn
                 continue;
             }
 
+            // calculate direction and perpindicular vectors
             dir.set(c2.x - c1.x, c2.y - c1.y);
-            // dir = c2.sub(c1);
             per.set(dir.x, -dir.y);
-
-
 
             // river width scales up to maximum
             const progress = j / cellList.length;
@@ -198,24 +198,24 @@ function buildRivers() {
             per.normalize().multiplyScalar(currentWidth);
 
             if (!lastP1 || !lastP2) {
-                vertices.push(c1.x - per.x / 2, c1.y - per.y / 2, 1.1);
-                vertices.push(c1.x + per.x / 2, c1.y + per.y / 2, 1.1);
-                vertices.push(c2.x - per.x / 2, c2.y - per.y / 2, 1.1);
+                vertices.push(c1.x - per.x / 2, c1.y - per.y / 2, z1);
+                vertices.push(c1.x + per.x / 2, c1.y + per.y / 2, z1);
+                vertices.push(c2.x - per.x / 2, c2.y - per.y / 2, z2);
 
-                vertices.push(c2.x - per.x / 2, c2.y - per.y / 2, 1.1);
-                vertices.push(c1.x + per.x / 2, c1.y + per.y / 2, 1.1);
-                vertices.push(c2.x + per.x / 2, c2.y + per.y / 2, 1.1);
+                vertices.push(c2.x - per.x / 2, c2.y - per.y / 2, z2);
+                vertices.push(c1.x + per.x / 2, c1.y + per.y / 2, z1);
+                vertices.push(c2.x + per.x / 2, c2.y + per.y / 2, z2);
 
                 lastP1 = new THREE.Vector2(c2.x - per.x / 2, c2.y - per.y / 2);
                 lastP2 = new THREE.Vector2(c2.x + per.x / 2, c2.y + per.y / 2);
             } else {
-                vertices.push(lastP1.x, lastP1.y, 1.1);
-                vertices.push(lastP2.x, lastP2.y, 1.1);
-                vertices.push(c2.x - per.x / 2, c2.y - per.y / 2, 1.1);
+                vertices.push(lastP1.x, lastP1.y, z1);
+                vertices.push(lastP2.x, lastP2.y, z1);
+                vertices.push(c2.x - per.x / 2, c2.y - per.y / 2, z2);
 
-                vertices.push(c2.x - per.x / 2, c2.y - per.y / 2, 1.1);
-                vertices.push(lastP2.x, lastP2.y, 1.1);
-                vertices.push(c2.x + per.x / 2, c2.y + per.y / 2, 1.1);
+                vertices.push(c2.x - per.x / 2, c2.y - per.y / 2, z2);
+                vertices.push(lastP2.x, lastP2.y, z1);
+                vertices.push(c2.x + per.x / 2, c2.y + per.y / 2, z2);
 
                 lastP1 = new THREE.Vector2(c2.x - per.x / 2, c2.y - per.y / 2);
                 lastP2 = new THREE.Vector2(c2.x + per.x / 2, c2.y + per.y / 2);
@@ -246,7 +246,7 @@ function buildRivers() {
         group.add(river);
 
         // TODO: remove
-        break;
+        // break;
     }
 }
 
@@ -296,4 +296,8 @@ function getCellLocation(cell) {
     }
 
     return loc;
+}
+
+function getCellHeightInScene(height) {
+    return seaLevel + (Math.max(0, height) / heightScale);
 }
