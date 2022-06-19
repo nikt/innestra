@@ -1,3 +1,5 @@
+import './style.css';
+import _ from 'lodash';
 import * as THREE from 'three';
 import { MapControls } from 'three/examples/jsm/controls/OrbitControls'
 import { clamp } from 'three/src/math/mathutils';
@@ -9,6 +11,11 @@ camera.position.y = 15;
 camera.position.z = 0;
 
 const scene = new THREE.Scene();
+
+const overlay = document.createElement('div');
+overlay.classList.add('overlay');
+overlay.innerHTML = _.join(['Hello', 'webpack'], ' ');
+document.body.appendChild(overlay);
 
 const renderer = new THREE.WebGLRenderer({antialias: true});
 renderer.setSize(window.innerWidth, window.innerHeight);
@@ -131,6 +138,7 @@ function buildCells() {
         const geometry = new THREE.ExtrudeGeometry(shape, settings);
 
         const cell = new THREE.Mesh(geometry, mat);
+        cell.definition = f;
         group.add(cell);
 
         // add border line
