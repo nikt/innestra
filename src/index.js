@@ -1,14 +1,22 @@
+import './style.css';
+import _ from 'lodash';
 import * as THREE from 'three';
 import { MapControls } from 'three/examples/jsm/controls/OrbitControls'
 import { clamp } from 'three/src/math/mathutils';
 import cells from './cells.geojson';
 import rivers from './rivers3.geojson';
+import markers from './markers.geojson';
 
 const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 1000);
-camera.position.y = 15;
+camera.position.y = 25;
 camera.position.z = 0;
 
 const scene = new THREE.Scene();
+
+const overlay = document.createElement('div');
+overlay.classList.add('overlay');
+overlay.innerHTML = 'Target cell:'
+document.body.appendChild(overlay);
 
 const renderer = new THREE.WebGLRenderer({antialias: true});
 renderer.setSize(window.innerWidth, window.innerHeight);
@@ -17,8 +25,8 @@ document.body.appendChild(renderer.domElement);
 
 const controls = new MapControls( camera, renderer.domElement );
 
-controls.enableDamping = true;
-controls.dampingFactor = 0.05;
+// controls.enableDamping = true;
+// controls.dampingFactor = 0.05;
 
 controls.screenSpacePanning = false;
 
@@ -34,12 +42,21 @@ const seaLevel = 1;
 const maxHeight = 6724;
 const heightScale = maxHeight / 2;
 
+// raycaster vars
+let targetCell;
+let raycaster = new THREE.Raycaster();
+raycaster.layers.set(1);
+const pointer = new THREE.Vector2();
+document.addEventListener('mousemove', onPointerMove);
+
 let group = new THREE.Group();
 let cellMeshes = [];
 let riverMeshes = [];
+let markerMeshes = [];
 
 buildCells();
 buildRivers();
+buildMarkers();
 
 scene.add(group);
 
@@ -131,6 +148,8 @@ function buildCells() {
         const geometry = new THREE.ExtrudeGeometry(shape, settings);
 
         const cell = new THREE.Mesh(geometry, mat);
+        cell.layers.enable(1);
+        cell.definition = f;
         group.add(cell);
 
         // add border line
@@ -148,6 +167,7 @@ function buildCells() {
     // center map position
     group.position.set(-(bounds.minX + bounds.maxX) / 2.0, 0, (bounds.minY + bounds.maxY) / 2.0);
     group.rotation.x = -Math.PI / 2;
+    group.scale.set(2, 2, 2);
 }
 
 function buildRivers() {
@@ -250,15 +270,81 @@ function buildRivers() {
     }
 }
 
+function buildMarkers() {
+    const geometry = new THREE.ConeGeometry(.15, .3, 6);
+    const material = new THREE.MeshBasicMaterial( {color: 0xffff00} );
+
+    for (var i = 0; i < markers.features.length; i++) {
+        let f = markers.features[i];
+
+        const cone = new THREE.Mesh(geometry, material);
+        cone.position.set(f.geometry.coordinates[0], f.geometry.coordinates[1], 1.5);
+        cone.rotation.x = -Math.PI / 2;
+        cone.definition = f;
+
+        markerMeshes.push(cone);
+        group.add(cone);
+    }
+}
+
 // animation
 function animation(time) {
     // camera.position.y = Math.max(camera.position.y, 0);
     controls.update();
 
+    checkRaycast();
+
     renderer.render(scene, camera);
 }
 
-// color helpers
+function checkRaycast() {
+    raycaster.setFromCamera(pointer, camera);
+    const intersections = raycaster.intersectObjects(scene.children, true);
+
+    if (intersections.length > 0) {
+        if (targetCell != intersections[0].object) {
+            if (targetCell) {
+                // reset color
+                targetCell.material.color.setHex(targetCell.currentHex);
+            }
+
+            // highlight color
+            targetCell = intersections[0].object;
+            targetCell.currentHex = targetCell.material.color.getHex();
+            targetCell.material.color.setHex(0xff0000);
+
+            overlay.innerHTML = _.join([
+                'Target cell:',
+                targetCell.definition.properties.id,
+                'height:',
+                getCellHeightInScene(targetCell.definition.properties.height),
+            ], ' ');
+        }
+    } else {
+        // not targeting any cell right now
+        if (targetCell) {
+            // reset color
+            targetCell.material.color.setHex(targetCell.currentHex);
+        }
+
+        targetCell = null;
+    }
+}
+
+////////////
+// EVENTS //
+////////////
+
+// keep track of pointer position
+function onPointerMove(event) {
+    pointer.x =  (event.clientX / renderer.domElement.width ) * 2 - 1;
+    pointer.y = -(event.clientY / renderer.domElement.height) * 2 + 1;
+}
+
+///////////////////
+// COLOR HELPERS //
+///////////////////
+
 function componentToHex(c) {
     var hex = c.toString(16);
     return hex.length == 1 ? "0" + hex : hex;
@@ -271,6 +357,10 @@ function rgbToHex(r, g, b) {
 function componentVariation(c, v) {
     return clamp(c + (Math.random() * v - v / 2), 0, 1);
 }
+
+//////////////////
+// CELL HELPERS //
+//////////////////
 
 // finds a cell definition from a given id
 function getCellByID(id) {
