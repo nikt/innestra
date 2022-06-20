@@ -5,6 +5,7 @@ import { MapControls } from 'three/examples/jsm/controls/OrbitControls'
 import { clamp } from 'three/src/math/mathutils';
 import cells from './cells.geojson';
 import rivers from './rivers3.geojson';
+import markers from './markers.geojson';
 
 const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 1000);
 camera.position.y = 25;
@@ -51,9 +52,11 @@ document.addEventListener('mousemove', onPointerMove);
 let group = new THREE.Group();
 let cellMeshes = [];
 let riverMeshes = [];
+let markerMeshes = [];
 
 buildCells();
 buildRivers();
+buildMarkers();
 
 scene.add(group);
 
@@ -267,6 +270,23 @@ function buildRivers() {
     }
 }
 
+function buildMarkers() {
+    const geometry = new THREE.ConeGeometry(.15, .3, 6);
+    const material = new THREE.MeshBasicMaterial( {color: 0xffff00} );
+
+    for (var i = 0; i < markers.features.length; i++) {
+        let f = markers.features[i];
+
+        const cone = new THREE.Mesh(geometry, material);
+        cone.position.set(f.geometry.coordinates[0], f.geometry.coordinates[1], 1.5);
+        cone.rotation.x = -Math.PI / 2;
+        cone.definition = f;
+
+        markerMeshes.push(cone);
+        group.add(cone);
+    }
+}
+
 // animation
 function animation(time) {
     // camera.position.y = Math.max(camera.position.y, 0);
@@ -293,7 +313,12 @@ function checkRaycast() {
             targetCell.currentHex = targetCell.material.color.getHex();
             targetCell.material.color.setHex(0xff0000);
 
-            overlay.innerHTML = _.join(['Target cell:', targetCell.definition.properties.id], ' ');
+            overlay.innerHTML = _.join([
+                'Target cell:',
+                targetCell.definition.properties.id,
+                'height:',
+                getCellHeightInScene(targetCell.definition.properties.height),
+            ], ' ');
         }
     } else {
         // not targeting any cell right now
