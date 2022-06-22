@@ -148,7 +148,7 @@ function buildCells() {
         const geometry = new THREE.ExtrudeGeometry(shape, settings);
 
         const cell = new THREE.Mesh(geometry, mat);
-        cell.layers.enable(1);
+        cell.layers.enable(1);  // raycasting layer
         cell.definition = f;
         group.add(cell);
 
@@ -271,16 +271,46 @@ function buildRivers() {
 }
 
 function buildMarkers() {
-    const geometry = new THREE.ConeGeometry(.15, .3, 6);
-    const material = new THREE.MeshBasicMaterial( {color: 0xffff00} );
+    const cityGeo       = new THREE.ConeGeometry(.15, .3, 5);
+    const militaryGeo   = new THREE.ConeGeometry(.22, .5, 4);
+    const capitalGeo    = new THREE.ConeGeometry(.27, .7, 6);
+    const hoverHeight = 0.05;   // height above the ground
+
+    const info = {
+        City: {
+            geometry: cityGeo,
+            color: 0xffff00,
+        },
+        Military: {
+            geometry: militaryGeo,
+            color: 0x013220,
+        },
+        Capital: {
+            geometry: capitalGeo,
+            color: 0x800000,
+        },
+    };
 
     for (var i = 0; i < markers.features.length; i++) {
         let f = markers.features[i];
 
+        // pick proper geometry
+        let geometry = info[f.properties.type].geometry;
+
+        // use cell beneath to calculate proper height
+        const cell = getCellByID(f.properties.cell);
+        const baseHeight = getCellHeightInScene(cell.properties.height);
+        const finalHeight = baseHeight + hoverHeight + geometry.parameters.height;
+
+        // use a seperate material instance for each mesh so we can highlight them individually
+        const material = new THREE.MeshBasicMaterial( {color: info[f.properties.type].color} );
         const cone = new THREE.Mesh(geometry, material);
-        cone.position.set(f.geometry.coordinates[0], f.geometry.coordinates[1], 1.5);
+        cone.position.set(f.geometry.coordinates[0], f.geometry.coordinates[1], finalHeight);
         cone.rotation.x = -Math.PI / 2;
+        cone.layers.enable(1);  // raycasting layer
         cone.definition = f;
+
+        // TODO: add a line down to map
 
         markerMeshes.push(cone);
         group.add(cone);
@@ -313,12 +343,22 @@ function checkRaycast() {
             targetCell.currentHex = targetCell.material.color.getHex();
             targetCell.material.color.setHex(0xff0000);
 
-            overlay.innerHTML = _.join([
-                'Target cell:',
-                targetCell.definition.properties.id,
-                'height:',
-                getCellHeightInScene(targetCell.definition.properties.height),
-            ], ' ');
+            // figure out what user is pointing at (cell or marker)
+            if (targetCell.definition.geometry.type == "Point") {
+                // marker
+                overlay.innerHTML = _.join([
+                    targetCell.definition.properties.name,
+                    targetCell.definition.properties.legend,
+                ], ' ');
+            } else if (targetCell.definition.geometry.type == "Polygon") {
+                // cell
+                overlay.innerHTML = _.join([
+                    'Target cell:',
+                    targetCell.definition.properties.id,
+                    'height:',
+                    getCellHeightInScene(targetCell.definition.properties.height),
+                ], ' ');
+            }
         }
     } else {
         // not targeting any cell right now
