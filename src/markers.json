@@ -249,8 +249,8 @@
          "geometry":{
             "type":"Point",
             "coordinates":[
-               -0.1125,
-               31.3409
+               0.3125,
+               31.1409
             ]
          },
          "properties":{
@@ -260,7 +260,7 @@
             "name":"Bryn Shander",
             "legend":"<p>Military fort guarding the northern pass through the Icehalt Ramparts.</p>",
             "fill":"#ffffff",
-            "cell":865
+            "cell":940
          }
       }
    ]
