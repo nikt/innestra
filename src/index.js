@@ -8,8 +8,7 @@ import rivers from './rivers3.geojson';
 import markers from './markers.geojson';
 
 const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 1000);
-camera.position.y = 25;
-camera.position.z = 0;
+camera.position.set(0, 12.5, -5);
 
 const scene = new THREE.Scene();
 
@@ -30,14 +29,29 @@ const controls = new MapControls( camera, renderer.domElement );
 
 controls.screenSpacePanning = false;
 
-controls.minDistance = 7;
+controls.minDistance = 3;
 controls.maxDistance = 100;
 
 controls.maxPolarAngle = Math.PI / 2;
 
-controls.target.set(0, 0, 0);
+controls.target.set(0, 5, -12.5);
 controls.update();
 
+// setup for toon material
+const colors = new Uint8Array(20);
+for (let c = 0; c <= colors.length; c++) {
+    colors[c] = (c / colors.length) * 256;
+}
+
+const format = ( renderer.capabilities.isWebGL2 ) ? THREE.RedFormat : THREE.LuminanceFormat;
+const gradientMap = new THREE.DataTexture(colors, colors.length, 1, format)
+gradientMap.needsUpdate = true;
+
+const toonParameters = {
+    gradientMap: gradientMap
+}
+
+// cell height settings
 const seaLevel = 1;
 const maxHeight = 6724;
 const heightScale = maxHeight / 2;
@@ -58,13 +72,18 @@ buildCells();
 buildRivers();
 buildMarkers();
 
+let particleLight;
+buildLights();
+
 scene.add(group);
 
 function buildCells() {
     const extrudeSettings = {
         steps: 1,
         depth: seaLevel,
-        bevelEnabled: false,
+        bevelEnabled: true,
+        bevelThickness: .01,
+        bevelSize: .01,
     }
     
     let bounds = {minX: 1000, maxX: 0, minY: 1000, maxY: 0};
@@ -144,11 +163,14 @@ function buildCells() {
         // const r = rgbToHex(i % 256, 255 - (i % 256), 0);
 
         // cell geometry
-        const mat = new THREE.MeshBasicMaterial({color: r});
+        const mat = new THREE.MeshToonMaterial({
+            ...toonParameters,
+            color: r
+        });
         const geometry = new THREE.ExtrudeGeometry(shape, settings);
 
         const cell = new THREE.Mesh(geometry, mat);
-        cell.layers.enable(1);
+        cell.layers.enable(1);  // raycasting layer
         cell.definition = f;
         group.add(cell);
 
@@ -157,7 +179,7 @@ function buildCells() {
         const geometryPoints = new THREE.BufferGeometry().setFromPoints(points);
         //new THREE.LineBasicMaterial( { color: color }
         let wire = new THREE.Line(geometryPoints, lineMaterial);
-        wire.position.z = settings.depth + 0.01;
+        wire.position.z = settings.depth + 0.02;
         group.add(wire);
 
         // add cell reference to array
@@ -264,32 +286,88 @@ function buildRivers() {
 
         riverMeshes.push(river);
         group.add(river);
-
-        // TODO: remove
-        // break;
     }
 }
 
 function buildMarkers() {
-    const geometry = new THREE.ConeGeometry(.15, .3, 6);
-    const material = new THREE.MeshBasicMaterial( {color: 0xffff00} );
+    const cityGeo       = new THREE.ConeGeometry(.15, .3, 5);
+    const militaryGeo   = new THREE.ConeGeometry(.22, .5, 4);
+    const capitalGeo    = new THREE.ConeGeometry(.27, .7, 6);
+    const hoverHeight = 0.05;   // height above the ground
+
+    const lineGeo = new THREE.BoxGeometry(.01, .01, .7);
+    const lineMat = new THREE.MeshBasicMaterial( {color: 0x000000} );
+
+    const info = {
+        City: {
+            geometry: cityGeo,
+            color: 0xffff00,
+        },
+        Military: {
+            geometry: militaryGeo,
+            color: 0x013220,
+        },
+        Capital: {
+            geometry: capitalGeo,
+            color: 0x800000,
+        },
+    };
 
     for (var i = 0; i < markers.features.length; i++) {
         let f = markers.features[i];
 
+        // pick proper geometry
+        let geometry = info[f.properties.type].geometry;
+
+        // use cell beneath to calculate proper height
+        const cell = getCellByID(f.properties.cell);
+        const baseHeight = getCellHeightInScene(cell.properties.height);
+        const finalHeight = baseHeight + hoverHeight + geometry.parameters.height;
+
+        // use a seperate material instance for each mesh so we can highlight them individually
+        const material = new THREE.MeshToonMaterial({
+            ...toonParameters,
+            color: info[f.properties.type].color
+        });
         const cone = new THREE.Mesh(geometry, material);
-        cone.position.set(f.geometry.coordinates[0], f.geometry.coordinates[1], 1.5);
+        cone.position.set(f.geometry.coordinates[0], f.geometry.coordinates[1], finalHeight);
         cone.rotation.x = -Math.PI / 2;
+        cone.layers.enable(1);  // raycasting layer
         cone.definition = f;
+
+        // position line down to map
+        const line = new THREE.Mesh(lineGeo, lineMat);
+        line.position.set(f.geometry.coordinates[0], f.geometry.coordinates[1], baseHeight + hoverHeight);
 
         markerMeshes.push(cone);
         group.add(cone);
+        group.add(line);
     }
+}
+
+function buildLights() {
+    particleLight = new THREE.Mesh(
+        new THREE.SphereGeometry(4, 8, 8),
+        new THREE.MeshBasicMaterial( { color: 0xffffff } )
+    );
+    particleLight.position.set(100, 50, 0);
+    scene.add(particleLight);
+
+    const pointLight = new THREE.PointLight(0xffffff, 1, 800);
+    particleLight.add(pointLight);
+
+    // lighting
+    const ambient = new THREE.AmbientLight(0x888888);
+    scene.add(ambient);
 }
 
 // animation
 function animation(time) {
-    // camera.position.y = Math.max(camera.position.y, 0);
+    // const timer = Date.now() * 0.00025;
+    // particleLight.position.x = Math.sin( timer * 7 ) * 300;
+    // particleLight.position.y = Math.cos( timer * 5 ) * 400;
+    // particleLight.position.z = Math.cos( timer * 3 ) * 300;
+
     controls.update();
 
     checkRaycast();
@@ -313,12 +391,23 @@ function checkRaycast() {
             targetCell.currentHex = targetCell.material.color.getHex();
             targetCell.material.color.setHex(0xff0000);
 
-            overlay.innerHTML = _.join([
-                'Target cell:',
-                targetCell.definition.properties.id,
-                'height:',
-                getCellHeightInScene(targetCell.definition.properties.height),
-            ], ' ');
+            // figure out what user is pointing at (cell or marker)
+            if (targetCell.definition.geometry.type == "Point") {
+                // TODO: update css to use proper styling for titles
+                // marker
+                overlay.innerHTML = _.join([
+                    targetCell.definition.properties.name,
+                    targetCell.definition.properties.legend,
+                ], ' ');
+            } else if (targetCell.definition.geometry.type == "Polygon") {
+                // cell
+                overlay.innerHTML = _.join([
+                    'Target cell:',
+                    targetCell.definition.properties.id,
+                    'height:',
+                    getCellHeightInScene(targetCell.definition.properties.height),
+                ], ' ');
+            }
         }
     } else {
         // not targeting any cell right now
