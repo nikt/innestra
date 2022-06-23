@@ -37,18 +37,9 @@ controls.maxPolarAngle = Math.PI / 2;
 controls.target.set(0, 5, -12.5);
 controls.update();
 
-// setup for toon material
-const colors = new Uint8Array(20);
-for (let c = 0; c <= colors.length; c++) {
-    colors[c] = (c / colors.length) * 256;
-}
-
-const format = ( renderer.capabilities.isWebGL2 ) ? THREE.RedFormat : THREE.LuminanceFormat;
-const gradientMap = new THREE.DataTexture(colors, colors.length, 1, format)
-gradientMap.needsUpdate = true;
-
-const toonParameters = {
-    gradientMap: gradientMap
+// setup for phong material
+const phongParameters = {
+    shininess: 15,
 }
 
 // cell height settings
@@ -163,8 +154,8 @@ function buildCells() {
         // const r = rgbToHex(i % 256, 255 - (i % 256), 0);
 
         // cell geometry
-        const mat = new THREE.MeshToonMaterial({
-            ...toonParameters,
+        const mat = new THREE.MeshPhongMaterial({
+            ...phongParameters,
             color: r
         });
         const geometry = new THREE.ExtrudeGeometry(shape, settings);
@@ -305,7 +296,7 @@ function buildMarkers() {
         },
         Military: {
             geometry: militaryGeo,
-            color: 0x013220,
+            color: 0x04822a,
         },
         Capital: {
             geometry: capitalGeo,
@@ -325,8 +316,8 @@ function buildMarkers() {
         const finalHeight = baseHeight + hoverHeight + geometry.parameters.height;
 
         // use a seperate material instance for each mesh so we can highlight them individually
-        const material = new THREE.MeshToonMaterial({
-            ...toonParameters,
+        const material = new THREE.MeshPhongMaterial({
+            ...phongParameters,
             color: info[f.properties.type].color
         });
         const cone = new THREE.Mesh(geometry, material);
@@ -357,7 +348,7 @@ function buildLights() {
     particleLight.add(pointLight);
 
     // lighting
-    const ambient = new THREE.AmbientLight(0x888888);
+    const ambient = new THREE.AmbientLight(0xbbbbbb);
     scene.add(ambient);
 }
 
