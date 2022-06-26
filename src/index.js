@@ -3,19 +3,18 @@ import _ from 'lodash';
 import * as THREE from 'three';
 import { MapControls } from 'three/examples/jsm/controls/OrbitControls'
 import { clamp } from 'three/src/math/mathutils';
-import cells from './cells.geojson';
-import rivers from './rivers3.geojson';
-import markers from './markers.geojson';
+import cells from './res/cells.geojson';
+import rivers from './res/rivers3.geojson';
+import markers from './res/markers.geojson';
+import {Header} from './map/header.js';
 
 const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 1000);
 camera.position.set(0, 12.5, -5);
 
 const scene = new THREE.Scene();
 
-const overlay = document.createElement('div');
-overlay.classList.add('overlay');
-overlay.innerHTML = 'Target cell:'
-document.body.appendChild(overlay);
+let header = new Header();
+header.buildHeader();
 
 const renderer = new THREE.WebGLRenderer({antialias: true});
 renderer.setSize(window.innerWidth, window.innerHeight);
@@ -379,20 +378,23 @@ function checkRaycast() {
 
             // figure out what user is pointing at (cell or marker)
             if (targetCell.definition.geometry.type == "Point") {
-                // TODO: update css to use proper styling for titles
                 // marker
-                overlay.innerHTML = _.join([
-                    '<h1>' + targetCell.definition.properties.name + '</h1>',
-                    targetCell.definition.properties.legend,
-                ], ' ');
+                header.setInnerHTML(
+                    _.join([
+                        '<h1>' + targetCell.definition.properties.name + '</h1>',
+                        targetCell.definition.properties.legend,
+                    ], ' ')
+                );
             } else if (targetCell.definition.geometry.type == "Polygon") {
                 // cell
-                overlay.innerHTML = _.join([
-                    'Target cell:',
-                    targetCell.definition.properties.id,
-                    'height:',
-                    getCellHeightInScene(targetCell.definition.properties.height),
-                ], ' ');
+                header.setInnerHTML(
+                    _.join([
+                        'Target cell:',
+                        targetCell.definition.properties.id,
+                        'height:',
+                        getCellHeightInScene(targetCell.definition.properties.height),
+                    ], ' ')
+                );
             }
         }
     } else {
