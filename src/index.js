@@ -161,7 +161,7 @@ function buildCells() {
         const geometry = new THREE.ExtrudeGeometry(shape, settings);
 
         const cell = new THREE.Mesh(geometry, mat);
-        cell.layers.enable(1);  // raycasting layer
+        // cell.layers.enable(1);  // raycasting layer
         cell.definition = f;
         group.add(cell);
 
@@ -354,11 +354,6 @@ function buildLights() {
 
 // animation
 function animation(time) {
-    // const timer = Date.now() * 0.00025;
-    // particleLight.position.x = Math.sin( timer * 7 ) * 300;
-    // particleLight.position.y = Math.cos( timer * 5 ) * 400;
-    // particleLight.position.z = Math.cos( timer * 3 ) * 300;
-
     controls.update();
 
     checkRaycast();
@@ -387,7 +382,7 @@ function checkRaycast() {
                 // TODO: update css to use proper styling for titles
                 // marker
                 overlay.innerHTML = _.join([
-                    targetCell.definition.properties.name,
+                    '<h1>' + targetCell.definition.properties.name + '</h1>',
                     targetCell.definition.properties.legend,
                 ], ' ');
             } else if (targetCell.definition.geometry.type == "Polygon") {
