@@ -297,6 +297,20 @@ export class MapModel extends THREE.Group {
         }
     }
 
+    // animation
+    tick(dT) {
+        const rps = 0.5;
+        for (let i = 0; i < this.markerMeshes.length; i++) {
+            let m = this.markerMeshes[i];
+            if (m.hovered) {
+                m.rotation.y = (m.rotation.y + (rps * Math.PI * 2.0 * dT)) % (Math.PI * 2.0);
+
+                // can only be one marker hovered, so stop looking for others
+                break;
+            }
+        }
+    }
+
     //////////////////
     // CELL HELPERS //
     //////////////////

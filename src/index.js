@@ -9,6 +9,7 @@ const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerH
 camera.position.set(0, 12.5, -5);
 
 const scene = new THREE.Scene();
+const clock = new THREE.Clock();
 
 let header = new Header();
 header.buildHeader();
@@ -40,13 +41,12 @@ raycaster.layers.set(1);
 const pointer = new THREE.Vector2();
 document.addEventListener('mousemove', onPointerMove);
 
-let particleLight;
-buildLights();
-
 let map = new MapModel();
 map.init();
-
 scene.add(map);
+
+let particleLight;
+buildLights();
 
 function buildLights() {
     particleLight = new THREE.Mesh(
@@ -66,6 +66,9 @@ function buildLights() {
 
 // animation
 function animation(time) {
+    const dT = clock.getDelta();
+    map.tick(dT);
+
     controls.update();
 
     checkRaycast();
@@ -88,6 +91,9 @@ function checkRaycast() {
             targetCell = intersections[0].object;
             targetCell.currentHex = targetCell.material.color.getHex();
             targetCell.material.color.setHex(0xff0000);
+
+            // set hovered
+            targetCell.hovered = true;
 
             // figure out what user is pointing at (cell or marker)
             if (targetCell.definition.geometry.type == "Point") {
@@ -115,6 +121,8 @@ function checkRaycast() {
         if (targetCell) {
             // reset color
             targetCell.material.color.setHex(targetCell.currentHex);
+
+            targetCell.hovered = false;
         }
 
         targetCell = null;
